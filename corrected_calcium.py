@@ -180,6 +180,24 @@ class CorrectedCalciumEngine:
         return classification, severity, ecg, recs
 
     @classmethod
+    def validate_inputs(
+        cls,
+        measured_total_calcium_mg_dl: float,
+        albumin_g_dl: float,
+        total_protein_g_dl: Optional[float] = None,
+        phosphate_mg_dl: Optional[float] = None,
+    ) -> None:
+        """Validate physiological input ranges. Raises ValueError on out-of-range values."""
+        if not (0.0 <= measured_total_calcium_mg_dl <= 30.0):
+            raise ValueError(f"Total calcium must be 0-30 mg/dL, got {measured_total_calcium_mg_dl}")
+        if not (0.5 <= albumin_g_dl <= 7.0):
+            raise ValueError(f"Albumin must be 0.5-7.0 g/dL, got {albumin_g_dl}")
+        if total_protein_g_dl is not None and not (1.0 <= total_protein_g_dl <= 12.0):
+            raise ValueError(f"Total protein must be 1.0-12.0 g/dL, got {total_protein_g_dl}")
+        if phosphate_mg_dl is not None and not (0.5 <= phosphate_mg_dl <= 20.0):
+            raise ValueError(f"Phosphate must be 0.5-20.0 mg/dL, got {phosphate_mg_dl}")
+
+    @classmethod
     def calculate(
         cls,
         measured_total_calcium_mg_dl: float,
@@ -188,6 +206,8 @@ class CorrectedCalciumEngine:
         phosphate_mg_dl: Optional[float] = None,
     ) -> CalciumCalculationResult:
         """Run complete corrected calcium, ionized estimate, and calciphylaxis assessment."""
+        cls.validate_inputs(measured_total_calcium_mg_dl, albumin_g_dl, total_protein_g_dl, phosphate_mg_dl)
+
         payne_ca = cls.payne_correction(measured_total_calcium_mg_dl, albumin_g_dl)
         payne_ca_mmol = payne_ca * cls.MG_DL_TO_MMOL_L_FACTOR
 
@@ -299,32 +319,53 @@ def main(argv=None):
         return 0
 
     elif args.command == "batch":
-        with open(args.input, mode="r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
+        try:
+            with open(args.input, mode="r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+        except FileNotFoundError:
+            print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"Error reading input file: {e}", file=sys.stderr)
+            return 1
+
         out_rows = []
-        for r in rows:
-            ca = float(r.get("calcium", r.get("calcium_mg_dl", 9.0)))
-            alb = float(r.get("albumin", r.get("albumin_g_dl", 4.0)))
-            prot = float(r["protein"]) if "protein" in r and r["protein"] else None
-            phos = float(r["phosphate"]) if "phosphate" in r and r["phosphate"] else None
-            calc_res = CorrectedCalciumEngine.calculate(ca, alb, prot, phos)
-            out_rows.append({
-                **r,
-                "payne_corrected_calcium_mg_dl": calc_res.payne_corrected_calcium_mg_dl,
-                "payne_corrected_calcium_mmol_l": calc_res.payne_corrected_calcium_mmol_l,
-                "estimated_ionized_ca_mg_dl": calc_res.estimated_ionized_calcium_mg_dl,
-                "ca_p_product": calc_res.calcium_phosphate_product_mg2_dl2 or "",
-                "calciphylaxis_risk": calc_res.calciphylaxis_risk or "",
-                "classification": calc_res.clinical_classification,
-                "severity_tier": calc_res.severity_tier,
-            })
+        errors = []
+        for idx, r in enumerate(rows):
+            try:
+                ca = float(r.get("calcium", r.get("calcium_mg_dl", 9.0)))
+                alb = float(r.get("albumin", r.get("albumin_g_dl", 4.0)))
+                prot = float(r["protein"]) if "protein" in r and r["protein"] else None
+                phos = float(r["phosphate"]) if "phosphate" in r and r["phosphate"] else None
+                calc_res = CorrectedCalciumEngine.calculate(ca, alb, prot, phos)
+                out_rows.append({
+                    **r,
+                    "payne_corrected_calcium_mg_dl": calc_res.payne_corrected_calcium_mg_dl,
+                    "payne_corrected_calcium_mmol_l": calc_res.payne_corrected_calcium_mmol_l,
+                    "estimated_ionized_ca_mg_dl": calc_res.estimated_ionized_calcium_mg_dl,
+                    "ca_p_product": calc_res.calcium_phosphate_product_mg2_dl2 or "",
+                    "calciphylaxis_risk": calc_res.calciphylaxis_risk or "",
+                    "classification": calc_res.clinical_classification,
+                    "severity_tier": calc_res.severity_tier,
+                })
+            except (ValueError, KeyError) as e:
+                errors.append(f"Row {idx + 1}: {e}")
+
         if out_rows:
-            with open(args.output, mode="w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=list(out_rows[0].keys()))
-                writer.writeheader()
-                writer.writerows(out_rows)
+            try:
+                with open(args.output, mode="w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=list(out_rows[0].keys()))
+                    writer.writeheader()
+                    writer.writerows(out_rows)
+            except Exception as e:
+                print(f"Error writing output file: {e}", file=sys.stderr)
+                return 1
         print(f"Batch processed {len(out_rows)} rows to {args.output}")
+        if errors:
+            print(f"  ({len(errors)} rows skipped due to errors):")
+            for err in errors:
+                print(f"    - {err}")
         return 0
 
 

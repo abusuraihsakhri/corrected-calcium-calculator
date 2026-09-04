@@ -52,33 +52,37 @@ Standards: KDIGO Mineral & Bone Disorder (MBD) / Endocrine Society Clinical Guid
 
 ## 💻 CLI Quickstart & Usage
 
-### 1. Guided Interactive Mode
+### 1. Calculate Corrected Calcium
 ```bash
-python cli.py
+# Basic calculation (calcium + albumin)
+python -m corrected_calcium calc --calcium 8.0 --albumin 2.5
+
+# Full panel with protein and phosphate
+python -m corrected_calcium calc --calcium 8.0 --albumin 2.5 --protein 7.0 --phosphate 4.5
+
+# JSON output
+python -m corrected_calcium calc --calcium 14.5 --albumin 4.0 --json
 ```
 
-### 2. Direct Parameterized Evaluation
+### 2. Batch Processing (CSV)
 ```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
+python -m corrected_calcium batch -i input.csv -o results.csv
 ```
 
-### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
+**Expected CSV columns:** `calcium`, `albumin`, `protein` (optional), `phosphate` (optional)
 
-### Input Data Schema
+### 3. Interactive Q&A
+```bash
+python -m corrected_calcium chat "What is the Payne formula?"
+```
 
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `id` | Parameter / observation metric | Required |
-| `value` | Parameter / observation metric | Required |
-| `qty` | Parameter / observation metric | Required |
+### 4. Enterprise Agent Supervisor (via cli.py)
+```bash
+python cli.py audit --task-id TASK-01
+python cli.py chat "Explain calcium classification"
+python cli.py verify-audit
+python cli.py serve --host 127.0.0.1 --port 8000
+```
 
 ---
 
@@ -103,7 +107,7 @@ pytest -v
 Execute high-throughput batch simulation benchmarks:
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python simulator.py 1000
 ```
 
 ---

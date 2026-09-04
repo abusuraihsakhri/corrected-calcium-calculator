@@ -150,5 +150,42 @@ class TestEndToEndAndCLI(unittest.TestCase):
         self.assertEqual(main(["chat", "What", "is", "the", "payne", "formula?"]), 0)
 
 
+class TestInputValidation(unittest.TestCase):
+    """Test suite for physiological input validation."""
+
+    def test_valid_inputs_accepted(self):
+        # Normal values should not raise
+        CorrectedCalciumEngine.validate_inputs(9.5, 4.0)
+        CorrectedCalciumEngine.validate_inputs(7.0, 2.5, 6.5, 4.0)
+
+    def test_negative_calcium_rejected(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.validate_inputs(-1.0, 4.0)
+
+    def test_extreme_calcium_rejected(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.validate_inputs(35.0, 4.0)
+
+    def test_low_albumin_rejected(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.validate_inputs(9.0, 0.1)
+
+    def test_high_albumin_rejected(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.validate_inputs(9.0, 8.0)
+
+    def test_invalid_protein_rejected(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.validate_inputs(9.0, 4.0, total_protein_g_dl=15.0)
+
+    def test_invalid_phosphate_rejected(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.validate_inputs(9.0, 4.0, phosphate_mg_dl=25.0)
+
+    def test_calculate_rejects_invalid(self):
+        with self.assertRaises(ValueError):
+            CorrectedCalciumEngine.calculate(measured_total_calcium_mg_dl=-5.0, albumin_g_dl=4.0)
+
+
 if __name__ == "__main__":
     unittest.main()
