@@ -1,120 +1,99 @@
 # Corrected Calcium Calculator
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+### [Open the Live Application →](https://abusuraihsakhri.github.io/corrected-calcium-calculator/)
 
-<div align="center">
+A small Python and browser calculator for the commonly used albumin-adjusted total-calcium equation.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## What it does
 
-</div>
-
----
-
-## 📖 What It Does
-
-Corrected Calcium Calculator & Calcium-Phosphate Mineral Metabolism Engine
--------------------------------------------------------------------------
-Implements Payne albumin-corrected calcium, Orrell/Figge total protein correction,
-estimated free ionized calcium, calcium-phosphate product (calciphylaxis risk),
-and emergency clinical management tiers for hypo/hypercalcemia.
-
-Domain: Endocrinology / Clinical Chemistry / Nephrology
-Standards: KDIGO Mineral & Bone Disorder (MBD) / Endocrine Society Clinical Guidelines
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Core Algorithmic & Evaluation Engines
-
-- **`CalciumCalculationResult`**: Complete diagnostic panel for serum calcium adjustments.
-- **`CorrectedCalciumEngine`**: Core mathematical engine for albumin, protein, and phosphate mineral metabolism.
-
----
-
-## 📐 Mathematical Formulation & Logic
+The core calculation uses the widely cited simplified equation:
 
 ```text
-  Payne formula (1973):
-  Payne formula in SI units:
-  Orrell / Parfitt formula for total protein-adjusted calcium:
-  risk = "CRITICAL_CALCIPHYLAXIS_RISK"
-  risk = "ELEVATED_CALCIFICATION_RISK"
+Corrected calcium (mg/dL) = measured total calcium + 0.8 × (4.0 − albumin in g/dL)
+
+Corrected calcium (mmol/L) = measured total calcium + 0.02 × (40 − albumin in g/L)
 ```
 
----
+The Python module also retains optional total-protein adjustment, calcium-phosphate product calculation, and a clearly labeled heuristic ionized-calcium estimate for compatibility with the existing API.
 
-## 💻 CLI Quickstart & Usage
+## Important clinical limitation
 
-### 1. Calculate Corrected Calcium
+Albumin-adjusted calcium is an estimate, not a measurement of ionized calcium. Contemporary evidence shows that correction equations can misclassify calcium status, particularly in critical illness. A 2026 IOF/IFCC/EFLM position statement recommends against routine reporting of albumin-adjusted calcium, and a prospective 2026 ICU study found poor diagnostic performance for simple correction formulae.
+
+When accurate calcium status will change management, use directly measured ionized calcium and the reporting laboratory's reference interval.
+
+References:
+
+- Cavalier E, et al. *Clin Chem Lab Med.* 2026;64(8):1719-1721. PMID: 42035248.
+- Özdemir E, Yılmaz T, Düzenci D. *PLoS One.* 2026;21(7):e0354233. PMID: 42479742.
+
+## Browser application
+
+The GitHub Pages application is static HTML/CSS/JavaScript. Calculation is performed locally in the browser; entered calcium and albumin values are not transmitted, stored, or logged by the page.
+
+No server-side Python, Pyodide, or WebAssembly runtime is required for the browser calculator.
+
+## Python usage
+
+Python 3.10–3.12 is tested in CI.
+
 ```bash
-# Basic calculation (calcium + albumin)
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Calculate one result:
+
+```bash
 python -m corrected_calcium calc --calcium 8.0 --albumin 2.5
-
-# Full panel with protein and phosphate
-python -m corrected_calcium calc --calcium 8.0 --albumin 2.5 --protein 7.0 --phosphate 4.5
-
-# JSON output
-python -m corrected_calcium calc --calcium 14.5 --albumin 4.0 --json
+python -m corrected_calcium calc --calcium 8.0 --albumin 2.5 --protein 7.0 --phosphate 4.5 --json
 ```
 
-### 2. Batch Processing (CSV)
+Batch CSV processing:
+
 ```bash
-python -m corrected_calcium batch -i input.csv -o results.csv
+python -m corrected_calcium batch -i input.csv -o calcium_results.csv
 ```
 
-**Expected CSV columns:** `calcium`, `albumin`, `protein` (optional), `phosphate` (optional)
+Required batch values are calcium and albumin. Accepted column names are `calcium` or `calcium_mg_dl`, and `albumin` or `albumin_g_dl`. Optional aliases are `protein` / `total_protein_g_dl` and `phosphate` / `phosphate_mg_dl`.
 
-### 3. Interactive Q&A
+Run tests:
+
 ```bash
-python -m corrected_calcium chat "What is the Payne formula?"
+pytest -q
 ```
 
-### 4. Enterprise Agent Supervisor (via cli.py)
+## Local API
+
+The repository includes a FastAPI service for the auxiliary audit/supervisor components:
+
 ```bash
-python cli.py audit --task-id TASK-01
-python cli.py chat "Explain calcium classification"
-python cli.py verify-audit
 python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
----
+The API is not required by the GitHub Pages calculator.
 
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
-
-```bash
-pytest -v
-```
-
-Execute high-throughput batch simulation benchmarks:
-
-```bash
-python simulator.py 1000
-```
-
----
-
-## 🐳 Container Deployment
+## Docker
 
 ```bash
 docker build -t corrected-calcium-calculator .
-docker run -p 8000:8000 corrected-calcium-calculator
+docker run --rm -p 8000:8000 corrected-calcium-calculator
 ```
+
+For audit-chain verification that must persist across process restarts, supply a stable `AUDIT_SECRET_KEY` through the deployment environment. Do not commit production keys.
+
+## Privacy and security
+
+- The public browser calculator has no backend and does not upload entered values.
+- The Python PHI-pattern guard is a limited pattern screen, not a de-identification guarantee.
+- The in-memory audit chain uses HMAC-SHA256 and verifies both chain links and signatures.
+- Production systems handling health information require appropriate authentication, authorization, logging, data-retention controls, and institutional validation beyond this repository.
+
+## Browser compatibility
+
+The static calculator uses standard modern HTML, CSS, and JavaScript and is intended for current versions of Chrome, Edge, Firefox, and Safari. No external fonts or JavaScript libraries are loaded.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
