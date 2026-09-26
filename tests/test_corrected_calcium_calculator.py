@@ -13,6 +13,7 @@ from agents.models import SystemTaskPayload, UrgencyLevel, SystemIntegrityStatus
 from agents.workers import InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker
 from agents.supervisor import SystemSupervisor
 from cli import main, parse_bool
+from agents.api import CalculateRequest, api_calculate
 
 
 def test_phi_guard_enforcement():
@@ -107,3 +108,11 @@ def test_parse_bool(raw, expected):
 def test_parse_bool_rejects_ambiguous_values():
     with pytest.raises(ValueError):
         parse_bool("maybe")
+
+
+def test_calculate_api_uses_core_engine():
+    response = api_calculate(
+        CalculateRequest(measured_total_calcium_mg_dl=8.0, albumin_g_dl=2.0)
+    )
+    assert response["payne_corrected_calcium_mg_dl"] == 9.6
+    assert response["clinical_caveats"]
