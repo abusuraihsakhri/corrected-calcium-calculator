@@ -2,7 +2,7 @@ name: Release
 
 on:
   workflow_run:
-    workflows: ["Corrected Calcium Calculator CI"]
+    workflows: ["GitHub Pages Smoke Test"]
     types: [completed]
 
 permissions:
@@ -16,17 +16,18 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+      RELEASE_VERSION: v1.0.1
 
     steps:
-      - name: Create v1.0.0 once
+      - name: Create final audited release once
         run: |
-          if gh release view v1.0.0 --repo "$REPOSITORY" >/dev/null 2>&1; then
-            echo "v1.0.0 already exists; no release action needed."
+          if gh release view "$RELEASE_VERSION" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            echo "$RELEASE_VERSION already exists; no release action needed."
             exit 0
           fi
 
-          gh release create v1.0.0 \
+          gh release create "$RELEASE_VERSION" \
             --repo "$REPOSITORY" \
             --target "$TARGET_SHA" \
-            --title "v1.0.0" \
-            --notes "First audited release. Adds a functional static GitHub Pages calculator, fixes HMAC audit verification and CSV parsing defects, makes formula-derived clinical output non-prescriptive, adds a corrected-calcium API endpoint, hardens Docker execution, and expands CI with dependency and container checks."
+            --title "$RELEASE_VERSION" \
+            --notes "Audited release with verified GitHub Pages publication. Includes the functional browser calculator, HMAC audit verification fixes, safer CSV and API input handling, non-prescriptive clinical output with evidence limitations, Docker hardening, dependency auditing, and live deployment smoke testing."

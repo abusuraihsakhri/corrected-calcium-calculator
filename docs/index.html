@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Browser-based albumin-adjusted calcium calculator using the commonly cited 0.8 correction formula.">
+  <title>Corrected Calcium Calculator</title>
+  <style>
+    :root {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #18212f;
+      --muted: #5d6a7c;
+      --line: #d7deea;
+      --accent: #2457c5;
+      --accent-strong: #17449f;
+      --soft: #eef3ff;
+      --warn-bg: #fff8e8;
+      --warn-border: #e7b64d;
+      --error: #b42318;
+      --shadow: 0 16px 40px rgba(26, 43, 75, 0.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1320;
+        --panel: #151d2b;
+        --text: #eef3fb;
+        --muted: #a8b4c6;
+        --line: #2b384d;
+        --accent: #8cb4ff;
+        --accent-strong: #b7ceff;
+        --soft: #182944;
+        --warn-bg: #302612;
+        --warn-border: #8f6b26;
+        --error: #ff9b8f;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    main {
+      width: min(960px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 3rem 0 4rem;
+    }
+    header { margin-bottom: 1.5rem; }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.9rem, 5vw, 2.7rem);
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+    }
+    .lede {
+      max-width: 760px;
+      margin: .7rem 0 0;
+      color: var(--muted);
+      font-size: 1.02rem;
+    }
+    .notice {
+      margin: 1.4rem 0;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--warn-border);
+      border-radius: 10px;
+      background: var(--warn-bg);
+    }
+    .notice strong { display: block; margin-bottom: .2rem; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
+      gap: 1.25rem;
+      align-items: start;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 1.35rem;
+    }
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.12rem;
+      letter-spacing: -0.015em;
+    }
+    fieldset {
+      border: 0;
+      padding: 0;
+      margin: 0 0 1rem;
+    }
+    legend {
+      font-weight: 650;
+      margin-bottom: .55rem;
+    }
+    .unit-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .65rem;
+    }
+    .unit-option {
+      display: flex;
+      gap: .45rem;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: .7rem .75rem;
+      cursor: pointer;
+    }
+    .field { margin-bottom: 1rem; }
+    label {
+      display: block;
+      font-weight: 650;
+      margin-bottom: .35rem;
+    }
+    .hint {
+      display: block;
+      color: var(--muted);
+      font-size: .84rem;
+      margin-top: .3rem;
+    }
+    .input-wrap {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    input[type="number"] {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: .78rem .85rem;
+      font: inherit;
+      outline: 0;
+    }
+    .input-wrap:focus-within {
+      outline: 3px solid color-mix(in srgb, var(--accent) 24%, transparent);
+      border-color: var(--accent);
+    }
+    .unit {
+      color: var(--muted);
+      padding: 0 .85rem;
+      font-size: .9rem;
+      white-space: nowrap;
+    }
+    .actions {
+      display: flex;
+      gap: .65rem;
+      margin-top: 1.15rem;
+    }
+    button {
+      min-height: 44px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      padding: .7rem 1rem;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary {
+      flex: 1;
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .primary:hover { background: var(--accent-strong); }
+    .secondary { background: var(--panel); color: var(--text); }
+    button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      outline-offset: 2px;
+    }
+    .error {
+      min-height: 1.4em;
+      color: var(--error);
+      font-weight: 650;
+      margin-top: .7rem;
+    }
+    .result-empty { color: var(--muted); }
+    .result-value {
+      font-size: clamp(2rem, 7vw, 3rem);
+      font-weight: 760;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      margin: .4rem 0;
+    }
+    .result-unit { color: var(--muted); font-weight: 650; }
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+      margin: 1rem 0 0;
+    }
+    .result-detail {
+      background: var(--soft);
+      border-radius: 9px;
+      padding: .8rem;
+    }
+    .result-detail span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .result-detail strong { font-size: 1.04rem; }
+    .formula {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .formula code {
+      display: block;
+      margin-top: .45rem;
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+    section.info {
+      margin-top: 1.25rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    ul { padding-left: 1.2rem; margin-bottom: 0; }
+    li + li { margin-top: .4rem; }
+    a { color: var(--accent); }
+    footer {
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    @media (max-width: 720px) {
+      main { padding-top: 1.5rem; }
+      .layout, section.info { grid-template-columns: 1fr; }
+      .unit-options { grid-template-columns: 1fr; }
+      .actions { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Corrected Calcium Calculator</h1>
+    <p class="lede">Calculate the commonly used albumin-adjusted total calcium estimate in conventional or SI units. The calculation runs entirely in your browser.</p>
+  </header>
+
+  <aside class="notice" aria-label="Clinical limitation">
+    <strong>Important limitation</strong>
+    Albumin-adjusted calcium is a historical estimate and may misclassify calcium status. It is not a measurement of ionized calcium and should not be used by itself to make treatment decisions. When accurate calcium status will change management, use directly measured ionized calcium and the reporting laboratory's reference interval.
+  </aside>
+
+  <div class="layout">
+    <form class="card" id="calculator" novalidate>
+      <h2>Inputs</h2>
+      <fieldset>
+        <legend>Units from the laboratory report</legend>
+        <div class="unit-options">
+          <label class="unit-option"><input type="radio" name="units" value="us" checked> mg/dL + g/dL</label>
+          <label class="unit-option"><input type="radio" name="units" value="si"> mmol/L + g/L</label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="calcium">Measured total calcium</label>
+        <div class="input-wrap">
+          <input id="calcium" name="calcium" type="number" inputmode="decimal" step="any" min="0" required autocomplete="off" aria-describedby="calcium-hint">
+          <span class="unit" id="calcium-unit">mg/dL</span>
+        </div>
+        <small class="hint" id="calcium-hint">Use total calcium from the same blood sample as albumin.</small>
+      </div>
+
+      <div class="field">
+        <label for="albumin">Serum albumin</label>
+        <div class="input-wrap">
+          <input id="albumin" name="albumin" type="number" inputmode="decimal" step="any" min="0" required autocomplete="off">
+          <span class="unit" id="albumin-unit">g/dL</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" type="submit">Calculate</button>
+        <button class="secondary" type="button" id="example">Use example</button>
+        <button class="secondary" type="reset">Reset</button>
+      </div>
+      <div class="error" id="error" role="alert" aria-live="polite"></div>
+    </form>
+
+    <section class="card" aria-labelledby="result-heading">
+      <h2 id="result-heading">Result</h2>
+      <div id="result-empty" class="result-empty">Enter calcium and albumin, then calculate.</div>
+      <div id="result" hidden aria-live="polite">
+        <div>Albumin-adjusted total calcium</div>
+        <div class="result-value" id="corrected-value">—</div>
+        <div class="result-unit" id="corrected-unit">mg/dL</div>
+        <div class="result-grid">
+          <div class="result-detail">
+            <span>Measured</span>
+            <strong id="measured-value">—</strong>
+          </div>
+          <div class="result-detail">
+            <span>Formula adjustment</span>
+            <strong id="adjustment-value">—</strong>
+          </div>
+        </div>
+        <div class="formula">
+          Formula used
+          <code id="formula-text">Corrected Ca = measured Ca + 0.8 × (4.0 − albumin)</code>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="info">
+    <article class="card">
+      <h2>What this tool does</h2>
+      <ul>
+        <li>Applies the widely used simplified albumin-adjustment equation.</li>
+        <li>Keeps unit systems explicit to reduce mg/dL/mmol/L and g/dL/g/L mix-ups.</li>
+        <li>Performs all calculation locally; values are not uploaded, stored, or logged by this page.</li>
+        <li>Does not estimate a treatment dose, diagnosis, or measured ionized calcium.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Evidence note</h2>
+      <p>Contemporary laboratory-medicine evidence has challenged routine reporting of albumin-adjusted calcium. In settings where calcium status is clinically consequential, direct ionized-calcium measurement is preferred.</p>
+      <ul>
+        <li><a href="https://pubmed.ncbi.nlm.nih.gov/42035248/" rel="noopener noreferrer">2026 IOF/IFCC/EFLM position statement</a></li>
+        <li><a href="https://pubmed.ncbi.nlm.nih.gov/42479742/" rel="noopener noreferrer">2026 prospective ICU comparison</a></li>
+      </ul>
+    </article>
+  </section>
+
+  <footer>
+    Educational and research use. Verify calculations against the source laboratory report and applicable clinical standards.
+  </footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const form = document.getElementById("calculator");
+  const calcium = document.getElementById("calcium");
+  const albumin = document.getElementById("albumin");
+  const calciumUnit = document.getElementById("calcium-unit");
+  const albuminUnit = document.getElementById("albumin-unit");
+  const correctedUnit = document.getElementById("corrected-unit");
+  const correctedValue = document.getElementById("corrected-value");
+  const measuredValue = document.getElementById("measured-value");
+  const adjustmentValue = document.getElementById("adjustment-value");
+  const formulaText = document.getElementById("formula-text");
+  const result = document.getElementById("result");
+  const resultEmpty = document.getElementById("result-empty");
+  const error = document.getElementById("error");
+  const example = document.getElementById("example");
+
+  const currentUnits = () => form.elements.units.value;
+
+  function configureUnits() {
+    const si = currentUnits() === "si";
+    calciumUnit.textContent = si ? "mmol/L" : "mg/dL";
+    albuminUnit.textContent = si ? "g/L" : "g/dL";
+    correctedUnit.textContent = si ? "mmol/L" : "mg/dL";
+    formulaText.textContent = si
+      ? "Corrected Ca = measured Ca + 0.02 × (40 − albumin)"
+      : "Corrected Ca = measured Ca + 0.8 × (4.0 − albumin)";
+    error.textContent = "";
+    result.hidden = true;
+    resultEmpty.hidden = false;
+  }
+
+  function format(value, digits) {
+    return Number(value).toFixed(digits);
+  }
+
+  form.addEventListener("change", event => {
+    if (event.target.name === "units") configureUnits();
+  });
+
+  form.addEventListener("reset", () => {
+    setTimeout(() => {
+      configureUnits();
+      calcium.focus();
+    }, 0);
+  });
+
+  example.addEventListener("click", () => {
+    if (currentUnits() === "si") {
+      calcium.value = "2.10";
+      albumin.value = "25";
+    } else {
+      calcium.value = "8.4";
+      albumin.value = "2.5";
+    }
+    calcium.focus();
+  });
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    error.textContent = "";
+
+    const ca = Number(calcium.value);
+    const alb = Number(albumin.value);
+    if (!Number.isFinite(ca) || !Number.isFinite(alb)) {
+      error.textContent = "Enter numeric calcium and albumin values.";
+      return;
+    }
+
+    const si = currentUnits() === "si";
+    const caMax = si ? 7.5 : 30;
+    const albMin = si ? 5 : 0.5;
+    const albMax = si ? 70 : 7;
+
+    if (ca < 0 || ca > caMax) {
+      error.textContent = `Calcium must be between 0 and ${caMax} ${si ? "mmol/L" : "mg/dL"} for this calculator.`;
+      return;
+    }
+    if (alb < albMin || alb > albMax) {
+      error.textContent = `Albumin must be between ${albMin} and ${albMax} ${si ? "g/L" : "g/dL"} for this calculator.`;
+      return;
+    }
+
+    const adjustment = si ? 0.02 * (40 - alb) : 0.8 * (4 - alb);
+    const corrected = ca + adjustment;
+    const digits = si ? 2 : 2;
+    const unit = si ? "mmol/L" : "mg/dL";
+
+    correctedValue.textContent = format(corrected, digits);
+    measuredValue.textContent = `${format(ca, digits)} ${unit}`;
+    adjustmentValue.textContent = `${adjustment >= 0 ? "+" : ""}${format(adjustment, digits)} ${unit}`;
+    result.hidden = false;
+    resultEmpty.hidden = true;
+  });
+
+  configureUnits();
+})();
+</script>
+</body>
+</html>

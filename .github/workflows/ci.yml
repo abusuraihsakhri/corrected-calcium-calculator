@@ -37,6 +37,9 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q .
 
+      - name: Verify Pages source copies
+        run: cmp --silent index.html docs/index.html
+
       - name: Run tests
         run: pytest -q
 
