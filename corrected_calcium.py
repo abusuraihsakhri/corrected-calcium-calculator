@@ -311,9 +311,12 @@ def main(argv=None):
             print("  ECG Correlates:")
             for e in res.ecg_manifestations:
                 print(f"    * {e}")
-            print("  Clinical Recommendations:")
+            print("  Clinical Notes:")
             for r in res.clinical_recommendations:
                 print(f"    * {r}")
+            print("  Limitations:")
+            for caveat in res.clinical_caveats:
+                print(f"    * {caveat}")
             print("=" * 80)
         return 0
 
@@ -343,10 +346,18 @@ def main(argv=None):
         errors = []
         for idx, r in enumerate(rows):
             try:
-                ca = float(r.get("calcium", r.get("calcium_mg_dl", 9.0)))
-                alb = float(r.get("albumin", r.get("albumin_g_dl", 4.0)))
-                prot = float(r["protein"]) if "protein" in r and r["protein"] else None
-                phos = float(r["phosphate"]) if "phosphate" in r and r["phosphate"] else None
+                ca_raw = r.get("calcium") or r.get("calcium_mg_dl")
+                alb_raw = r.get("albumin") or r.get("albumin_g_dl")
+                if ca_raw is None or str(ca_raw).strip() == "":
+                    raise ValueError("missing required calcium/calcium_mg_dl value")
+                if alb_raw is None or str(alb_raw).strip() == "":
+                    raise ValueError("missing required albumin/albumin_g_dl value")
+                ca = float(ca_raw)
+                alb = float(alb_raw)
+                prot_raw = r.get("protein") or r.get("total_protein_g_dl")
+                phos_raw = r.get("phosphate") or r.get("phosphate_mg_dl")
+                prot = float(prot_raw) if prot_raw not in (None, "") else None
+                phos = float(phos_raw) if phos_raw not in (None, "") else None
                 calc_res = CorrectedCalciumEngine.calculate(ca, alb, prot, phos)
                 out_rows.append({
                     **r,
@@ -375,6 +386,8 @@ def main(argv=None):
             print(f"  ({len(errors)} rows skipped due to errors):")
             for err in errors:
                 print(f"    - {err}")
+        if not out_rows:
+            return 1
         return 0
 
 
