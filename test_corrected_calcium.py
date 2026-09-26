@@ -91,7 +91,7 @@ class TestClinicalSeverityClassification(unittest.TestCase):
         c, s, ecg, recs = CorrectedCalciumEngine.classify_calcium_level(6.5)
         self.assertEqual(c, "SEVERE_HYPOCALCEMIA")
         self.assertEqual(s, "PANIC_CRITICAL")
-        self.assertTrue(any("IV Calcium Gluconate" in r for r in recs))
+        self.assertTrue(any("ionized calcium" in r.lower() for r in recs))
         self.assertTrue(any("Prolonged QTc" in e for e in ecg))
 
     def test_mild_moderate_hypocalcemia(self):
@@ -114,13 +114,13 @@ class TestClinicalSeverityClassification(unittest.TestCase):
         c, s, ecg, recs = CorrectedCalciumEngine.classify_calcium_level(12.8)
         self.assertEqual(c, "MODERATE_HYPERCALCEMIA")
         self.assertEqual(s, "ELEVATED")
-        self.assertTrue(any("Bisphosphonate" in r for r in recs))
+        self.assertTrue(any("clinical assessment" in r.lower() for r in recs))
 
     def test_hypercalcemic_crisis_panic(self):
         c, s, ecg, recs = CorrectedCalciumEngine.classify_calcium_level(15.2)
         self.assertEqual(c, "HYPERCALCEMIC_CRISIS")
         self.assertEqual(s, "PANIC_CRITICAL")
-        self.assertTrue(any("hemodialysis" in r.lower() for r in recs))
+        self.assertTrue(any("albumin-corrected" in r.lower() for r in recs))
 
 
 class TestEndToEndAndCLI(unittest.TestCase):
@@ -138,6 +138,7 @@ class TestEndToEndAndCLI(unittest.TestCase):
         self.assertEqual(res.clinical_classification, "MILD_MODERATE_HYPOCALCEMIA")
         self.assertIsNotNone(res.protein_corrected_calcium_mg_dl)
         self.assertIsNotNone(res.calcium_phosphate_product_mg2_dl2)
+        self.assertTrue(any("ionized calcium" in item.lower() for item in res.clinical_caveats))
 
         json_out = res.to_json()
         self.assertIn("MILD_MODERATE_HYPOCALCEMIA", json_out)
@@ -185,6 +186,17 @@ class TestInputValidation(unittest.TestCase):
     def test_calculate_rejects_invalid(self):
         with self.assertRaises(ValueError):
             CorrectedCalciumEngine.calculate(measured_total_calcium_mg_dl=-5.0, albumin_g_dl=4.0)
+
+    def test_batch_rejects_missing_required_values(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "input.csv"
+            dst = Path(tmp) / "output.csv"
+            src.write_text("calcium,albumin\n8.2,\n", encoding="utf-8")
+            self.assertEqual(main(["batch", "-i", str(src), "-o", str(dst)]), 1)
+            self.assertFalse(dst.exists())
 
 
 if __name__ == "__main__":

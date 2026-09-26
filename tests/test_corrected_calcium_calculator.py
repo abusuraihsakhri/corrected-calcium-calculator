@@ -8,11 +8,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from agents.base import PHIGuard, AuditLogger, SecurityException
+from agents.base import AuditTrail, PHIGuard, AuditLogger, SecurityException
 from agents.models import SystemTaskPayload, UrgencyLevel, SystemIntegrityStatus
 from agents.workers import InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker
 from agents.supervisor import SystemSupervisor
-from cli import main
+from cli import main, parse_bool
+from agents.api import CalculateRequest, api_calculate
 
 
 def test_phi_guard_enforcement():
@@ -63,3 +64,55 @@ def test_supervisor_consensus_and_audit():
     assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
     assert main(["chat", "Explain", "specifications"]) == 0
     assert main(["verify-audit"]) == 0
+
+
+def test_audit_trail_detects_field_tampering_and_is_defensive():
+    trail = AuditTrail(secret_key="unit-test-key")
+    trail.log("tester", "unit", "EVENT", {"status": "ok"})
+    exposed = trail.get_trail()
+    exposed[0]["actor"] = "attacker"
+    assert trail.verify_integrity() is True
+
+    trail.logs[0]["actor"] = "attacker"
+    assert trail.verify_integrity() is False
+
+
+def test_full_payload_phi_screening():
+    supervisor = SystemSupervisor(model_provider="mock")
+    payload = SystemTaskPayload(
+        task_id="TASK-SAFE-01",
+        target_identifier="KEY-01",
+        primary_metric=10.0,
+        attributes={"note": "contact jane@example.com"},
+    )
+    with pytest.raises(SecurityException):
+        supervisor.process_task(payload)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("true", True),
+        ("1", True),
+        ("yes", True),
+        ("false", False),
+        ("0", False),
+        ("no", False),
+        ("", False),
+    ],
+)
+def test_parse_bool(raw, expected):
+    assert parse_bool(raw) is expected
+
+
+def test_parse_bool_rejects_ambiguous_values():
+    with pytest.raises(ValueError):
+        parse_bool("maybe")
+
+
+def test_calculate_api_uses_core_engine():
+    response = api_calculate(
+        CalculateRequest(measured_total_calcium_mg_dl=8.0, albumin_g_dl=2.0)
+    )
+    assert response["payne_corrected_calcium_mg_dl"] == 9.6
+    assert response["clinical_caveats"]
