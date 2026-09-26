@@ -1,0 +1,33 @@
+name: GitHub Pages Smoke Test
+
+on:
+  workflow_run:
+    workflows: ["Corrected Calcium Calculator CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-pages:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'master' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify published calculator
+        env:
+          PAGES_URL: https://abusuraihsakhri.github.io/corrected-calcium-calculator/
+        run: |
+          for attempt in {1..18}; do
+            body="$(curl --fail --silent --show-error --location --max-time 15 "$PAGES_URL" 2>/dev/null || true)"
+            if grep -Fq "<title>Corrected Calcium Calculator</title>" <<<"$body" \
+              && grep -Fq "Important limitation" <<<"$body" \
+              && grep -Fq "Albumin-adjusted total calcium" <<<"$body"; then
+              echo "GitHub Pages calculator is live."
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "Published Pages content did not match the production calculator." >&2
+          exit 1
