@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Corrected Calcium Calculator & Calcium-Phosphate Mineral Metabolism Engine
--------------------------------------------------------------------------
-Implements Payne albumin-corrected calcium, Orrell/Figge total protein correction,
-estimated free ionized calcium, calcium-phosphate product (calciphylaxis risk),
-and emergency clinical management tiers for hypo/hypercalcemia.
+Corrected Calcium Calculator
+----------------------------
+Implements historical albumin-adjustment arithmetic, optional total-protein
+adjustment, a heuristic ionized-calcium estimate, and calcium-phosphate product
+calculation.
 
-Domain: Endocrinology / Clinical Chemistry / Nephrology
-Standards: KDIGO Mineral & Bone Disorder (MBD) / Endocrine Society Clinical Guidelines
+Important: albumin-adjusted calcium and calculated ionized calcium are estimates,
+not substitutes for directly measured ionized calcium. This module does not
+provide treatment or dosing instructions.
 """
 
 import argparse
@@ -37,6 +38,7 @@ class CalciumCalculationResult:
     severity_tier: str  # 'NORMAL', 'ELEVATED', 'PANIC_CRITICAL'
     ecg_manifestations: List[str]
     clinical_recommendations: List[str]
+    clinical_caveats: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -129,52 +131,53 @@ class CorrectedCalciumEngine:
             severity = "PANIC_CRITICAL"
             ecg = ["Prolonged QTc interval", "Lengthened ST segment", "Ventricular arrhythmia / Torsades risk"]
             recs = [
-                "CRITICAL: Immediate 10% IV Calcium Gluconate (1-2 ampules in 100 mL D5W over 10-20 min).",
-                "Continuous cardiac telemetry monitoring.",
-                "Check and correct concomitant hypomagnesemia (target Mg > 2.0 mg/dL).",
-                "Assess for tetany, Chvostek's sign, Trousseau's sign, laryngeal stridor.",
+                "Urgent clinical assessment is warranted for a markedly low calcium result or compatible symptoms.",
+                "Confirm calcium status with directly measured ionized calcium when management depends on the result.",
+                "Interpret with pH, magnesium, kidney function, medications, and the laboratory reference interval.",
             ]
         elif corrected_ca_mg_dl < 8.5:
             classification = "MILD_MODERATE_HYPOCALCEMIA"
             severity = "ELEVATED"
             ecg = ["Borderline QTc prolongation"]
             recs = [
-                "Prescribe oral calcium carbonate/citrate (1000-1500 mg elemental Ca daily in divided doses).",
-                "Co-administer active Vitamin D (Calcitriol 0.25-0.5 mcg daily) if hypoparathyroidism or CKD.",
-                "Verify serum magnesium and intact PTH levels.",
+                "Review the laboratory reference interval and clinical context before labeling hypocalcemia.",
+                "Consider directly measured ionized calcium when the result would change management.",
+                "Evaluate relevant contributors such as magnesium, kidney function, PTH, and vitamin D when clinically indicated.",
             ]
         elif corrected_ca_mg_dl <= 10.2:
             classification = "NORMOCALCEMIA"
             severity = "NORMAL"
             ecg = ["Normal QTc and ST morphology"]
-            recs = ["Normal mineral homeostasis. Continue routine surveillance."]
+            recs = [
+                "A value within this calculator's illustrative interval does not exclude an ionized-calcium disorder.",
+                "Use the reporting laboratory's reference interval and the patient's clinical context.",
+            ]
         elif corrected_ca_mg_dl <= 11.9:
             classification = "MILD_HYPERCALCEMIA"
             severity = "ELEVATED"
             ecg = ["Shortened QTc interval", "Shortened ST segment"]
             recs = [
-                "Encourage vigorous oral hydration (> 2-3 L/day).",
-                "Discontinue thiazide diuretics, lithium, and calcium/vitamin D supplements.",
-                "Investigate etiology: serum intact PTH, PTHrP, 1,25-OH Vitamin D, SPEP/UPEP.",
+                "Confirm an unexpected elevated result and interpret it with the reporting laboratory's reference interval.",
+                "Review medications and potential causes with an appropriate clinician.",
+                "Consider directly measured ionized calcium when diagnostic or treatment decisions depend on calcium status.",
             ]
         elif corrected_ca_mg_dl < 14.0:
             classification = "MODERATE_HYPERCALCEMIA"
             severity = "ELEVATED"
             ecg = ["Markedly shortened QTc interval", "Widened T waves", "PR interval prolongation"]
             recs = [
-                "Initiate IV 0.9% Normal Saline (200-300 mL/hr) targeting urine output 100-150 mL/hr.",
-                "Administer IV Bisphosphonate (Zoledronic acid 4 mg IV over 15 min or Pamidronate 60-90 mg).",
-                "Consider subcutaneous Calcitonin (4-8 IU/kg q12h) for rapid 24-48h reduction.",
+                "Prompt clinical assessment is warranted for a substantially elevated calcium result.",
+                "Confirm calcium status and evaluate the cause before treatment decisions.",
+                "Directly measured ionized calcium may be preferable when accuracy is clinically important.",
             ]
         else:
             classification = "HYPERCALCEMIC_CRISIS"
             severity = "PANIC_CRITICAL"
             ecg = ["Shortened QTc interval", "Osborn (J) waves", "Heart block / bradyarrhythmia risk"]
             recs = [
-                "CRITICAL EMERGENCY: Aggressive IV isotonic saline rehydration (300-500 mL/hr initially).",
-                "Immediate IV Bisphosphonate (Zoledronic acid) + Calcitonin.",
-                "Urgent Nephrology consult for emergency hemodialysis (zero or low-calcium dialysate) if renal failure or refractory.",
-                "Continuous ICU cardiac telemetry.",
+                "A markedly elevated calcium result can require urgent clinical assessment.",
+                "Do not base emergency treatment on an albumin-corrected estimate alone; confirm and assess the patient.",
+                "Use directly measured ionized calcium and local emergency protocols when immediate management is being considered.",
             ]
 
         return classification, severity, ecg, recs
@@ -243,6 +246,12 @@ class CorrectedCalciumEngine:
             severity_tier=severity,
             ecg_manifestations=ecg,
             clinical_recommendations=recs,
+            clinical_caveats=[
+                "Albumin-adjusted calcium is a historical estimate and can misclassify calcium status.",
+                "The calculated ionized-calcium value is a heuristic estimate, not a laboratory measurement.",
+                "The calcium-phosphate product is not a validated stand-alone calciphylaxis risk score.",
+                "Use measured ionized calcium when accurate calcium status will change clinical management.",
+            ],
         )
 
 
@@ -294,7 +303,7 @@ def main(argv=None):
             print(f"  Serum Albumin:           {res.albumin_g_dl:.2f} g/dL (Baseline: 4.0 g/dL)")
             print(f"  Payne Corrected Calcium: {res.payne_corrected_calcium_mg_dl:.2f} mg/dL ({res.payne_corrected_calcium_mmol_l:.3f} mmol/L)")
             print(f"  Estimated Ionized Ca2+:  {res.estimated_ionized_calcium_mg_dl:.2f} mg/dL ({res.estimated_ionized_calcium_mmol_l:.3f} mmol/L)")
-            if res.protein_corrected_calcium_mg_dl:
+            if res.protein_corrected_calcium_mg_dl is not None:
                 print(f"  Protein-Corrected Ca:    {res.protein_corrected_calcium_mg_dl:.2f} mg/dL")
             if res.calcium_phosphate_product_mg2_dl2 is not None:
                 print(f"  Ca x P Product:          {res.calcium_phosphate_product_mg2_dl2:.2f} mg2/dL2 ({res.calciphylaxis_risk})")
